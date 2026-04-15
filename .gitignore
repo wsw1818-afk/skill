@@ -1,20 +1,12 @@
-# Packaging artifacts
 *.tar.gz
 *.zip
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Local backups
 .council-code-backup-*
-.council-code-uninstall-backup-*
-
-# Editor
 .vscode/
 .idea/
 *.swp
-
-# Runtime logs & results (README only in repo)
 logs/*.jsonl
 results/*.json
+document-skills/logs/
+document-skills/output/
