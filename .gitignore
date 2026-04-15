@@ -14,3 +14,7 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Runtime logs & results (README only in repo)
+logs/*.jsonl
+results/*.json

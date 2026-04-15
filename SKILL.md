@@ -11,8 +11,15 @@ description: |
 
 # Council-Code: 다관점 코드 설계 원탁회의
 
-> 한 문제를 8명의 페르소나 에이전트가 **병렬 의견 → 교차 비판 → 합의 →
-> 구현 → 재검증**의 4라운드로 수렴하는 통합 워크플로우.
+> 한 문제를 2-9명의 페르소나 에이전트가 **독립 의견 → 교차 비판 → 합의**의
+> **3라운드**로 수렴하는 통합 워크플로우.
+>
+> **v2 개선사항** (2026-04-15):
+> - ✅ 동적 페르소나 선택 (관련성 스코어 기반 2-9명 유동 소집)
+> - ✅ Round 4 재검증 제거 (실효성 불명)
+> - ✅ CRITICAL 3개 페르소나 어댑터화 (security/performance/engineer)
+> - ✅ TL;DR 헤더 (페르소나별 1줄 결론)
+> - ✅ 진행 표시 & 중간 개입 체크포인트
 
 ---
 
@@ -32,18 +39,22 @@ description: |
 
 ---
 
-## 🎭 참여 가능한 8개 페르소나
+## 🎭 참여 가능한 9개 페르소나
 
-| 페르소나 | 에이전트 파일 | 관점 |
-|---------|-------------|------|
-| 🧑‍💻 **개발자** | `perspective-engineer` | 유지보수성, 기술부채, 성능 |
-| 👤 **사용자** | `perspective-user` | UX, 학습곡선, 직관성 |
-| 🔒 **보안 전문가** | `perspective-security` | 취약점, 프라이버시, 공격면 |
-| 🧪 **QA** | `perspective-qa` | 엣지 케이스, 회귀, 테스트 가능성 |
-| 💼 **PM** | `perspective-pm` | ROI, 스코프, 일정, MVP |
-| 🎨 **디자이너** | `perspective-designer` | 일관성, 접근성, 시각 계층 |
-| ⚙️ **DevOps** | `perspective-devops` | 배포, 모니터링, 장애 복구 |
-| 😤 **비판자** | `perspective-devils-advocate` | "왜 하지 말아야 하는가" |
+| 페르소나 | 에이전트 파일 | 관점 | 타입 |
+|---------|-------------|------|:-:|
+| 🧑‍💻 **개발자** | `perspective-engineer` | 설계 단계 엔지니어링 | 🔀 어댑터 (→ code-reviewer) |
+| 👤 **사용자** | `perspective-user` | UX, 학습곡선, 직관성 | ✅ 독립 |
+| 🔒 **보안 전문가** | `perspective-security` | 취약점, 프라이버시, 공격면 | 🔀 어댑터 (→ security-reviewer) |
+| 🧪 **QA** | `perspective-qa` | 엣지 케이스, 회귀, 테스트 가능성 | ✅ 독립 |
+| 💼 **PM** | `perspective-pm` | ROI, 스코프, 일정, MVP | ✅ 독립 |
+| 🎨 **디자이너** | `perspective-designer` | 일관성, 접근성, 시각 계층 | ✅ 독립 |
+| ⚙️ **DevOps** | `perspective-devops` | 배포, 모니터링, 장애 복구 | ✅ 독립 |
+| 😤 **비판자** | `perspective-devils-advocate` | "왜 하지 말아야 하는가" | ✅ 독립 |
+| ⚡ **성능** | `perspective-performance` | 병목, 벤치마크, 스케일링 | 🔀 어댑터 (→ performance-optimizer) |
+
+**🔀 어댑터 페르소나**: 기존의 성숙한 에이전트(code-reviewer, security-reviewer,
+performance-optimizer)를 내부 활용. DRY 원칙 준수. 원본 업데이트가 자동 반영.
 
 자세한 역할 정의는 [personas.md](personas.md) 참조.
 
@@ -71,7 +82,45 @@ description: |
 
 ---
 
-## 🔄 4-라운드 프로토콜
+## 🔄 3-라운드 프로토콜 (v2: Round 4 제거됨)
+
+### Round 0: 동적 페르소나 선택 (메인, ~5초)
+
+**전에 없던 단계**. 주제를 받으면 메인 Claude가 다음 순서로 팀 구성:
+
+```
+1. 프로젝트 감지
+   - CWD에 .council-code.yml 있음? → base_personas 로드
+   - CLAUDE.md에 Profile 섹션? → 해당 페르소나 로드
+   - 파일 시그니처 자동 감지 (pubspec.yaml → flutter-app 등)
+   - 모두 실패 → 디폴트 후보군 [engineer, user, qa]
+
+2. 복잡도 추정 (2-9명 자동 조절)
+   - 주제 키워드 수 (많으면 복잡)
+   - "아키텍처/전면 개편" 키워드 → 풀 원탁 (7-9명)
+   - "네이밍/간단/빠른" 키워드 → 미니 원탁 (2-3명)
+   - 그 외 → 표준 원탁 (3-5명)
+
+3. 관련성 스코어 필터
+   - 각 후보 페르소나에 주제 관련성 0-1 추정
+   - 0.5 미만 페르소나는 제외 (예: 네이밍 결정에 devops 불필요)
+   - 강제 페르소나(프로파일의 forced_personas) 예외
+
+4. 최종 팀 확정 및 사용자에게 알림
+```
+
+**메인 Claude의 진행 표시 (중요)**:
+
+```
+📋 Council-Code 시작: "주제"
+🔍 프로젝트 감지: [타입] (via [감지 방법])
+🎭 페르소나 선정: X명
+   ✅ engineer (0.85)
+   ✅ user (0.72)
+   ✅ devops (0.68)
+   ⏭️ security (0.3, 제외)
+⏱️ 예상 소요: ~N분
+```
 
 ### Round 1: 독립 의견 제시 (병렬, ~1분)
 
@@ -79,10 +128,22 @@ description: |
 
 **중요**: 에이전트들은 서로의 의견을 보지 못한 상태에서 독립적으로 답변한다.
 
-각 페르소나는 다음 형식으로 응답:
+**진행 표시 (Round 1 중)**:
+```
+🔄 Round 1/3: 독립 의견 수집 중...
+   ✅ engineer (28초)
+   🔄 user (진행 중, 45초 경과)
+   ⏳ qa (대기)
+```
+
+각 페르소나는 **TL;DR 헤더 포함** 다음 형식으로 응답:
 
 ```markdown
-## 🎭 [페르소나명]의 초기 의견
+## 🎭 [페르소나명]
+> **결론: [한 줄 — 가장 핵심적인 판단]**
+> **핵심: [두 번째 줄 — 가장 중요한 논점 or 우려]**
+
+> ⚠️ 관련성 스코어: 0.XX (낮으면 조기 종료 선언)
 
 ### 핵심 우려사항 3가지
 1. ...
@@ -98,6 +159,25 @@ description: |
 ### 필요한 추가 정보
 ...
 ```
+
+**🛑 Round 1 완료 후 체크포인트 (중간 개입)**:
+
+Round 1이 끝나면 메인 Claude가 **사용자에게 짧게 확인**:
+
+```
+✅ Round 1 완료. 4명 의견 수집됨.
+   방향: [대략적 수렴 방향 1줄]
+
+계속 진행하려면 Enter.
+방향을 바꾸거나 페르소나를 조정하려면:
+  - "추가 [페르소나명]": 새 관점 추가
+  - "제외 [페르소나명]": 특정 관점 제외
+  - "방향 [지시]": 논의 방향 재설정
+  - "중단": Round 1 결과만 보고 종료
+  - "합의": Round 2 생략하고 바로 합의안
+```
+
+사용자가 명시적으로 `--non-interactive` 플래그를 썼거나 간단한 주제면 생략.
 
 ### Round 2: 교차 비판 (병렬, ~1분)
 
@@ -154,58 +234,72 @@ description: |
 
 **사용자 승인 대기.**
 
-### Round 4: 구현 + 재검증 (~시간 가변)
+### ~~Round 4: 재검증~~ (v2에서 제거됨)
 
-1. **메인 Claude가 합의안에 따라 직접 구현** (병렬 구현은 금지 — 파일 충돌)
-2. 구현 완료 후, **Round 1과 동일한 페르소나들을 병렬 재호출**하여 검증
-3. 각 페르소나가 "합의안이 제대로 반영되었는가?" 확인
-4. 불합격 시 Round 3-4 반복 (최대 3회)
+**왜 제거?**
+
+Round 3 합의 후 재검증은 이론적으로 안전망이지만 실제로는:
+- 합의를 뒤엎는 사례가 거의 없음 (순수 오버헤드)
+- Round 3 완료 = 사용자 승인 시점 = 종료 시점이 명확
+- 구현 후 추가 리뷰는 기존 code-reviewer / flutter-reviewer 등 전문 에이전트로 충분
+
+**대체 경로**: 구현 완료 후 필요 시 다음 도구 사용:
+- 코드 품질: `code-reviewer` 에이전트 직접 호출
+- 언어별: `flutter-reviewer` / `python-reviewer` / `typescript-reviewer`
+- 보안: `security-reviewer` 에이전트
 
 ---
 
 ## 🧭 오케스트레이션 의사코드
 
-메인 Claude는 아래 로직을 따른다:
+메인 Claude는 아래 로직을 따른다 (v2 간결화):
 
 ```
-function councilCode(topic, personas = defaultFour, mode = "full"):
+function councilCode(topic, opts = {}):
 
-  # 1단계: 페르소나 선택
-  if personas not specified:
-    personas = selectPersonasByTopic(topic)
-    # 예: 보안 키워드 감지 → security 포함
-    # 예: UI 키워드 감지 → designer 포함
+  # Round 0: 동적 페르소나 선택
+  profile = detectProjectProfile(cwd)       # .council-code.yml / CLAUDE.md / 파일시그니처
+  complexity = estimateComplexity(topic)    # simple | standard | complex
+  candidates = profile.base + keywordPersonas(topic) + opts.add
+  candidates -= opts.exclude
 
-  # 2단계: Round 1 병렬 실행
-  round1Results = parallel([
-    for p in personas:
-      Agent(perspective-{p}, prompt="초기 의견 제시: {topic}")
+  # 관련성 필터 (2-9명 유동)
+  personas = candidates.filter(p => 
+    p.relevanceScore(topic) >= 0.5 
+    || profile.forced.includes(p)
+  )
+  
+  # 복잡도별 상한
+  personas = personas.slice(0, complexityMaxCount[complexity])
+
+  showProgress(`🎭 선정된 페르소나 ${personas.length}명`)
+
+  # Round 1: 병렬 독립 의견
+  round1 = parallel([
+    Agent(`perspective-${p}`, "초기 의견: " + topic)
+    for p in personas
+  ])
+  
+  # 체크포인트 (사용자 개입 기회)
+  if !opts.nonInteractive:
+    userInput = checkpoint(round1Summary)
+    if userInput.action == "중단": return earlyTerminate(round1)
+    if userInput.action == "합의": return synthesize(round1)  # Round 2 생략
+    if userInput.action in ["추가", "제외", "방향"]:
+      personas = adjustTeam(personas, userInput)
+
+  # Round 2: 교차 비판 (병렬)
+  round2 = parallel([
+    Agent(`perspective-${p}`, "교차 비판: " + round1)
+    for p in personas
   ])
 
-  # 3단계: Round 2 교차 비판 (병렬)
-  round2Results = parallel([
-    for p in personas:
-      Agent(perspective-{p}, prompt="다른 의견들 비판: {round1Results}")
-  ])
-
-  # 4단계: 메인이 합의안 작성
-  consensus = synthesize(round1Results, round2Results)
-  showToUser(consensus)
-  awaitApproval()
-
-  # 5단계: 구현
-  implementation = mainClaude.implement(consensus)
-
-  # 6단계: 재검증 (병렬)
-  validation = parallel([
-    for p in personas:
-      Agent(perspective-{p}, prompt="합의안 반영 확인: {implementation}")
-  ])
-
-  if allPass(validation):
-    return done
-  else:
-    goto step 4 (max 3 retries)
+  # Round 3: 합의안
+  consensus = synthesize(round1, round2)
+  saveResult(cwd, topic, consensus, round1, round2)  # JSON 저장
+  logExecution(personas, roundCount=3, tokens)       # jsonl 로그
+  
+  return consensus  # Round 4 없음 (v2)
 ```
 
 ---
@@ -341,28 +435,58 @@ CWD: /Volumes/SSD/claude/Claude/오픈클로
 
 ## ⚠️ 주의사항
 
-- **컨텍스트 윈도우**: 8명 풀 원탁은 토큰 소모 큼. 일반적으로 4명 권장.
-- **순차 강제**: Round 4 구현은 반드시 메인이 단독 수행 (병렬 구현 시 파일 충돌).
-- **무한 루프 방지**: Round 3-4 재시도는 최대 3회. 초과 시 사용자에게 수동 개입 요청.
-- **관점 오염 방지**: Round 1은 에이전트들이 서로의 답변을 보지 못하게 격리해야 함.
+- **동적 팀 규모**: 2-9명 유동. 단순 주제에 9명 강제하지 말 것.
+- **관점 오염 방지**: Round 1은 에이전트들이 서로의 답변을 보지 못하게 격리.
+- **어댑터 페르소나**: security/performance/engineer는 원본 에이전트 업데이트에 자동 동기화.
+- **체크포인트 존중**: Round 1 완료 시 사용자 개입 기회 제공 (비상호작용 모드 제외).
+- **관련성 스코어 0.5**: 미만 페르소나는 자동 제외. 조기 종료 선언 허용.
 
 ---
 
-## 📊 측정 지표
+## 📊 측정 지표 & 로그 인프라
 
-세션 종료 시 메인 Claude가 다음을 보고:
+### 실행 로그 (jsonl)
+
+`~/.claude/skills/council-code/logs/YYYY-MM-DD.jsonl` 에 append-only 기록:
+
+```json
+{"timestamp": "2026-04-15T14:30:00Z", "session": "abc123", "project": "winote",
+ "topic_hash": "sha256:...", "personas": ["engineer", "user", "qa"],
+ "rounds": 3, "duration_ms": 95000, "outcome": "approved", "tokens": 890000}
+```
+
+### 원탁회의 결과 저장 (JSON)
+
+`~/.claude/skills/council-code/results/YYYYMMDD-HHMMSS-{topic_slug}.json` 저장:
+
+```json
+{
+  "topic": "원 주제",
+  "timestamp": "...",
+  "project": "winote",
+  "personas_summoned": [...],
+  "round1_opinions": [...],
+  "round2_critiques": [...],
+  "consensus": "...",
+  "open_questions": [...],
+  "implementation_plan": [...]
+}
+```
+
+→ 같은 주제 반복 시 "지난번 합의안 참조" 가능.
+
+### 세션 종료 시 보고
 
 ```markdown
 ## 📊 Council 성과
 
-- 참여 페르소나: 4명 (engineer, user, designer, qa)
-- 총 라운드: 4
-- Round 1 독립 의견 수: 4
-- Round 2 수정 의견: 2건
-- 합의 도달 여부: ✅
-- Round 4 재시도: 0회
-- 예상 대비 발견한 추가 이슈: 3개 (엣지케이스 2, UX 1)
-- 토큰 사용량: 약 X
+- 참여 페르소나: N명 ([목록])
+- 총 라운드: 3 (Round 4 제거됨)
+- 평균 관련성 스코어: X.XX
+- 중간 개입: 있음/없음
+- 합의 도달: ✅/⚠️/❌
+- 결과 저장: results/YYYYMMDD-....json
+- 소요 시간: ~N분
 ```
 
 ---
