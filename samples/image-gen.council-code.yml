@@ -1,0 +1,55 @@
+# Council-Code Profile for 이미지생성
+# Python AI 이미지 생성 파이프라인 (배치/병렬 처리)
+
+name: "image-generation-pipeline"
+type: "python-pipeline"
+description: "Stable Diffusion/GPT 기반 배치 이미지 생성 파이프라인."
+
+# 항상 참여하는 기본 페르소나 (4명)
+base_personas:
+  - engineer           # Python 파이프라인 구조
+  - devops             # 배치 실행, 모니터링, 리소스
+  - performance        # GPU 활용률, 병렬 처리, 처리량
+  - qa                 # 생성 품질 일관성, 실패 복구
+
+# 강제 추가 (해당 없음)
+forced_personas: []
+
+# 기본 제외
+excluded_personas:
+  - designer           # 생성 이미지가 아닌 코드 대상
+  - user               # 엔드유저 없음 (본인 사용)
+
+# 키워드별 추가 페르소나
+keyword_additions:
+  "비용|API 호출|토큰|결제": [pm]
+  "보안|API 키|secrets": [security]
+  "출시|배포|공유": [devops, pm]
+  "프롬프트|모델 변경|파라미터": [qa, performance]
+  "새 플로우|워크플로우": [devils-advocate]
+  "Chrome|CDP|브라우저": [engineer, devops]   # kill-cdp-chrome.sh 주의
+
+# 프로젝트 컨텍스트
+context: |
+  - 성격: 개인용 배치 이미지 생성 파이프라인
+  - 모델: GPT Image 1 + Stable Diffusion 계열
+  - 실행: Python 스크립트 + Chrome CDP (일부 플로우)
+  - 제약: Chrome Remote Desktop 보호 - pkill 금지
+  - 핵심 최적화 대상: GPU 활용률, API 호출 비용, 병렬 처리량
+  - 산출물 경로: /Users/wsw1818naver.com/Library/.../산출물/
+  - 철학: 재현성 > 편의성 (같은 입력 = 같은 출력)
+  - 파일 패턴: batch_*.py (배치), flow_*.py (플로우), gpt_*.py (GPT 계열)
+
+# 원탁 모드 기본값
+defaults:
+  mode: "standard"
+  rounds: 4
+  max_retries: 2
+
+# 측정 지향 (performance 페르소나 우선)
+metrics_focus:
+  - "이미지/분 처리량"
+  - "GPU 활용률"
+  - "API 비용 (월)"
+  - "실패율"
+  - "병렬 워커 스케일링"

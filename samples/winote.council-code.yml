@@ -1,0 +1,42 @@
+# Council-Code Profile for winote
+# 프로젝트 성격에 맞춘 페르소나 자동 구성
+
+name: "winote"
+type: "flutter-app"
+description: "Flutter + Expo 하이브리드 메모/노트 앱. 개인 사용자 대상."
+
+# 항상 참여하는 기본 페르소나 (4명)
+base_personas:
+  - engineer     # Flutter/Dart 기술 결정
+  - user         # 메모 앱 UX (직관성 중요)
+  - designer     # 시각 일관성, 다크모드, 접근성
+  - qa           # 멀티 플랫폼 호환성
+
+# 특정 상황에서 강제 추가 (주제 키워드 무관)
+forced_personas: []
+
+# 기본 제외 (필요 시 --add로 명시 추가)
+excluded_personas:
+  - devops       # 모바일 앱이라 배포 외엔 불필요
+
+# 키워드별 추가 페르소나 (주제에서 자동 감지)
+keyword_additions:
+  "동기화|백업|클라우드|공유": [security, devops]
+  "성능|느림|렉|스크롤": [performance]
+  "사용자|온보딩|첫 실행": [user]   # 이미 있지만 강조
+  "오프라인|SQLite|로컬": [security]
+
+# 프로젝트 컨텍스트 (각 페르소나에게 주입)
+context: |
+  - 플랫폼: Flutter (주) + Expo (보조)
+  - 데이터: 로컬 SQLite 우선, 클라우드 동기화는 옵션
+  - 타겟: 개인 사용자 (기술 비전문가 비중 높음)
+  - 철학: 오프라인 우선, 단순함 우선, 개인정보 최소 수집
+  - 코드 스타일: dart-flutter-patterns 스킬 준수
+  - 주의: "나중에 필요할 수도" 기능 금지 (MVP 단계)
+
+# 원탁 모드 기본값
+defaults:
+  mode: "standard"      # quick(3명) | standard(4명) | full(8명)
+  rounds: 4             # 4라운드 표준
+  max_retries: 2        # Round 4 재시도 제한
